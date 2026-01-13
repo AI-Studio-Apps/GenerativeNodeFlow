@@ -937,6 +937,169 @@ const App: React.FC = () => {
     return `rgba(${defaultRgb!.r}, ${defaultRgb!.g}, ${defaultRgb!.b}, ${opacity})`;
   }, [theme.nodeBackground, theme.nodeOpacity]);
 
+  // Keyboard Shortcuts Handler
+  useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+          if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+          const isCtrl = e.ctrlKey || e.metaKey;
+          const key = e.key.toLowerCase();
+
+          // Delete
+          if (e.key === shortcuts.delete || e.key === 'Delete' || e.key === 'Backspace') {
+              if (selectedNodeIds.size > 0 || selectedEdgeId) {
+                  e.preventDefault();
+                  
+                  setNodes(prev => {
+                      const newNodes = { ...prev };
+                      selectedNodeIds.forEach(id => delete newNodes[id]);
+                      return newNodes;
+                  });
+
+                  setEdges(prev => {
+                      const newEdges = { ...prev };
+                      // Remove selected edge
+                      if (selectedEdgeId) delete newEdges[selectedEdgeId];
+                      // Remove edges connected to deleted nodes
+                      Object.values(prev).forEach(edge => {
+                          if (selectedNodeIds.has(edge.sourceNodeId) || selectedNodeIds.has(edge.targetNodeId)) {
+                              delete newEdges[edge.id];
+                          }
+                      });
+                      return newEdges;
+                  });
+                  
+                  // Also remove from groups
+                  setGroups(prev => {
+                      const newGroups = { ...prev };
+                      Object.keys(newGroups).forEach(groupId => {
+                           newGroups[groupId].nodeIds = newGroups[groupId].nodeIds.filter(id => !selectedNodeIds.has(id));
+                      });
+                      return newGroups;
+                  });
+
+                  setSelectedNodeIds(new Set());
+                  setSelectedEdgeId(null);
+              }
+          }
+
+          // Run
+          if (e.key === shortcuts.run && !isCtrl) { // Assuming 'Enter'
+              e.preventDefault();
+              runWorkflow();
+          }
+
+          // Shortcuts with Modifier (Ctrl/Cmd)
+          if (isCtrl) {
+              switch (key) {
+                  case shortcuts.save.toLowerCase():
+                      e.preventDefault();
+                      downloadWorkflow();
+                      break;
+                  case shortcuts.load.toLowerCase():
+                      e.preventDefault();
+                      uploadWorkflow();
+                      break;
+                  case shortcuts.copy.toLowerCase():
+                      e.preventDefault();
+                      if (selectedNodeIds.size > 0) {
+                          const nodesToCopy = Array.from(selectedNodeIds).map(id => nodes[id]);
+                          // Copy internal edges between selected nodes
+                          const edgesToCopy = Object.values(edges).filter(edge => 
+                              selectedNodeIds.has(edge.sourceNodeId) && selectedNodeIds.has(edge.targetNodeId)
+                          );
+                          clipboard.current = { nodes: nodesToCopy, edges: edgesToCopy };
+                          setNotification({ message: `Copied ${nodesToCopy.length} nodes to clipboard`, type: 'info' });
+                      }
+                      break;
+                  case shortcuts.paste.toLowerCase():
+                      e.preventDefault();
+                      if (clipboard.current) {
+                           const { nodes: pastedNodes, edges: pastedEdges } = clipboard.current;
+                           const idMap = new Map<string, string>();
+                           const newNodes: Record<string, Node> = {};
+                           
+                           // Create new nodes with new IDs, offset position
+                           pastedNodes.forEach(node => {
+                               const newId = crypto.randomUUID();
+                               idMap.set(node.id, newId);
+                               newNodes[newId] = {
+                                   ...node,
+                                   id: newId,
+                                   position: { x: node.position.x + 50, y: node.position.y + 50 },
+                                   zIndex: zIndexCounter.current++,
+                                   data: { ...node.data, status: NodeStatus.IDLE } 
+                               };
+                           });
+
+                           setNodes(prev => ({ ...prev, ...newNodes }));
+                           
+                           // Create new edges
+                           const newEdgesToAdd: Record<string, Edge> = {};
+                           pastedEdges.forEach(edge => {
+                               const newSourceId = idMap.get(edge.sourceNodeId);
+                               const newTargetId = idMap.get(edge.targetNodeId);
+                               if (newSourceId && newTargetId) {
+                                   const newEdgeId = crypto.randomUUID();
+                                   newEdgesToAdd[newEdgeId] = {
+                                       ...edge,
+                                       id: newEdgeId,
+                                       sourceNodeId: newSourceId,
+                                       sourceHandleId: edge.sourceHandleId.replace(edge.sourceNodeId, newSourceId),
+                                       targetNodeId: newTargetId,
+                                       targetHandleId: edge.targetHandleId.replace(edge.targetNodeId, newTargetId)
+                                   };
+                               }
+                           });
+                           setEdges(prev => ({ ...prev, ...newEdgesToAdd }));
+                           
+                           // Select the new nodes
+                           setSelectedNodeIds(new Set(idMap.values()));
+                      }
+                      break;
+                  case shortcuts.group.toLowerCase():
+                      if (e.shiftKey) { // Ungroup (Shift+Ctrl+G)
+                         e.preventDefault();
+                         // Logic can be added here
+                      } else { // Group (Ctrl+G)
+                         e.preventDefault();
+                         if (selectedNodeIds.size > 0) {
+                             const groupId = crypto.randomUUID();
+                             const newGroup: Group = {
+                                 id: groupId,
+                                 label: 'New Group',
+                                 color: getRandomColor(),
+                                 nodeIds: Array.from(selectedNodeIds)
+                             };
+                             setGroups(prev => ({ ...prev, [groupId]: newGroup }));
+                         }
+                      }
+                      break;
+                   case shortcuts.mute.toLowerCase():
+                      e.preventDefault();
+                      if (selectedNodeIds.size > 0) {
+                          setNodes(prev => {
+                              const newNodes = { ...prev };
+                              selectedNodeIds.forEach(id => {
+                                  if (newNodes[id]) {
+                                      newNodes[id] = {
+                                          ...newNodes[id],
+                                          data: { ...newNodes[id].data, isMuted: !newNodes[id].data.isMuted }
+                                      };
+                                  }
+                              });
+                              return newNodes;
+                          });
+                      }
+                      break;
+              }
+          }
+      };
+
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [shortcuts, selectedNodeIds, selectedEdgeId, nodes, edges, runWorkflow, downloadWorkflow, uploadWorkflow]);
+
   const canvasStyle = {
     '--node-background-color': nodeRgba,
     '--node-text-color': theme.nodeTextColor,
