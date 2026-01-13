@@ -25,7 +25,15 @@ View the app in AI Studio: https://ai.studio/apps/drive/1Q7ZKXRgkgGC3bEYbt40odU-
    `npm run dev`
 
 
-## AI Model Providers
+## AI Model Configuration
+
+This app allows you to configure different Gemini models for specific tasks (Text, Image, Video) via the **Settings** panel.
+
+- **Independent Settings:** You can define a unique **API Key**, **Model Name** (e.g., `gemini-2.5-flash-image`, `veo-3.1-fast-generate-preview`), and **Base URL** for each modality using the tabbed interface.
+- **Persistence:** Your configurations are saved automatically to your browser's Local Storage, preserving your setup between sessions.
+- **Dynamic Execution:** The application dynamically selects the correct credentials and model version based on the active node type (Text Generator, Image Editor, or Video Generator).
+
+
 
 Open the app settings to specify the API Key, Model, and URL (local or cloud)   
 These settings are saved to your localstorage.

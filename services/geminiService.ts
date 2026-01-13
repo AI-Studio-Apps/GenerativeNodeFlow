@@ -1,25 +1,43 @@
 
-import { GoogleGenAI, Modality } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import type { GenerateContentResponse } from '@google/genai';
 
-// Default configuration
-let currentApiKey = process.env.API_KEY || "";
-let currentBaseUrl = "";
-let currentTextModel = 'gemini-3-flash-preview'; // Default text model
+interface ModelConfig {
+    apiKey: string;
+    model: string;
+    baseUrl: string;
+}
 
-// Initialize the client dynamically
-let ai = new GoogleGenAI({ apiKey: currentApiKey || "PLACEHOLDER" });
+// Default configurations
+const defaults = {
+    text: { model: 'gemini-3-flash-preview' },
+    image: { model: 'gemini-2.5-flash-image' },
+    video: { model: 'veo-3.1-fast-generate-preview' },
+    audio: { model: 'gemini-2.5-flash-native-audio-preview-12-2025' }
+};
 
-export const updateConfig = (apiKey: string, model: string, baseUrl?: string) => {
-    currentApiKey = apiKey;
-    currentTextModel = model || 'gemini-3-flash-preview';
-    currentBaseUrl = baseUrl || "";
+let configs: Record<string, ModelConfig> = {
+    text: { apiKey: process.env.API_KEY || "", model: defaults.text.model, baseUrl: "" },
+    image: { apiKey: process.env.API_KEY || "", model: defaults.image.model, baseUrl: "" },
+    video: { apiKey: process.env.API_KEY || "", model: defaults.video.model, baseUrl: "" },
+    audio: { apiKey: process.env.API_KEY || "", model: defaults.audio.model, baseUrl: "" }
+};
+
+export const updateConfig = (newConfigs: Record<string, ModelConfig>) => {
+    configs = { ...configs, ...newConfigs };
+};
+
+const getClient = (type: 'text' | 'image' | 'video' | 'audio') => {
+    const conf = configs[type];
+    // Fallback to process.env.API_KEY if specific key is missing, but allow empty if that's what's passed (though API calls will fail)
+    // Actually, if self-hosting, user must provide key.
+    const apiKey = conf.apiKey || process.env.API_KEY || "PLACEHOLDER";
     
-    const options: any = { apiKey: currentApiKey };
-    if (currentBaseUrl) {
-        options.baseUrl = currentBaseUrl;
+    const options: any = { apiKey };
+    if (conf.baseUrl) {
+        options.baseUrl = conf.baseUrl;
     }
-    ai = new GoogleGenAI(options);
+    return new GoogleGenAI(options);
 };
 
 const MAX_RETRIES = 3;
@@ -28,15 +46,15 @@ const INITIAL_DELAY_MS = 2000;
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * A higher-order function that wraps an API call with retry logic for rate limiting errors.
+ * A higher-order function that wraps an API call with retry logic.
+ * Expects a function that returns a Promise.
  */
-const withRetry = <T extends (...args: any[]) => Promise<any>>(apiCall: (client: any, ...args: any[]) => Promise<any>): ((...args: any[]) => Promise<any>) => {
-    return (async (...args: any[]): Promise<any> => {
+const withRetry = <T>(apiCall: () => Promise<T>): (() => Promise<T>) => {
+    return async (): Promise<T> => {
         let lastError: any;
         for (let i = 0; i < MAX_RETRIES; i++) {
             try {
-                // Always use the current 'ai' instance
-                return await apiCall(ai, ...args);
+                return await apiCall();
             } catch (error: any) {
                 lastError = error;
                 let isRateLimitError = false;
@@ -71,12 +89,9 @@ const withRetry = <T extends (...args: any[]) => Promise<any>>(apiCall: (client:
             }
         }
         throw lastError;
-    });
+    };
 };
 
-/**
- * Parses potential JSON error messages from the Gemini API for better user feedback.
- */
 const formatError = (error: any, context: string): string => {
     console.error(`Error in ${context}:`, error);
     let errorMessage = error instanceof Error ? error.message : String(error);
@@ -89,15 +104,10 @@ const formatError = (error: any, context: string): string => {
             }
         }
     } catch (e) {
-        // Not a JSON string, use the message as is.
+        // Not a JSON string
     }
     return `Error: ${errorMessage}`;
 };
-
-// Wrappers that inject the current 'ai' instance
-const generateContentWrapped = withRetry((client, params) => client.models.generateContent(params));
-const generateVideosWrapped = withRetry((client, params) => client.models.generateVideos(params));
-const getVideosOperationWrapped = withRetry((client, params) => client.operations.getVideosOperation(params));
 
 
 // Helper to convert File object to base64
@@ -123,10 +133,13 @@ const base64ToGenerativePart = (base64: string, mimeType: string) => {
 export const generateText = async (prompt: string): Promise<string> => {
     if (!prompt) return "Error: Prompt is empty.";
     try {
-        const response: GenerateContentResponse = await generateContentWrapped({
-            model: currentTextModel,
+        const client = getClient('text');
+        const apiCall = () => client.models.generateContent({
+            model: configs.text.model || defaults.text.model,
             contents: prompt,
         });
+        
+        const response: GenerateContentResponse = await withRetry(apiCall)();
         return response.text || "No text generated.";
     } catch (error) {
         return formatError(error, "generateText");
@@ -136,16 +149,16 @@ export const generateText = async (prompt: string): Promise<string> => {
 export const generateImage = async (prompt: string): Promise<string> => {
     if (!prompt) return "Error: Prompt is empty.";
     try {
-        // Using gemini-2.5-flash-image for generation via generateContent
-        const response: GenerateContentResponse = await generateContentWrapped({
-            model: 'gemini-2.5-flash-image',
+        const client = getClient('image');
+        const apiCall = () => client.models.generateContent({
+            model: configs.image.model || defaults.image.model,
             contents: {
                 parts: [{ text: prompt }]
             },
-            config: {
-                // responseMimeType and responseSchema are NOT supported for nano banana
-            }
+            config: {}
         });
+
+        const response: GenerateContentResponse = await withRetry(apiCall)();
 
         for (const part of response.candidates?.[0]?.content?.parts || []) {
             if (part.inlineData) {
@@ -169,13 +182,16 @@ export const editImage = async (
 ): Promise<{ newBase64Image: string | null; text: string | null }> => {
     if (!base64Image || !prompt) return { newBase64Image: null, text: "Error: Image or prompt is missing." };
     try {
+        const client = getClient('image');
         const imagePart = base64ToGenerativePart(base64Image, mimeType);
         const textPart = { text: prompt };
 
-        const response: GenerateContentResponse = await generateContentWrapped({
-            model: 'gemini-2.5-flash-image',
+        const apiCall = () => client.models.generateContent({
+            model: configs.image.model || defaults.image.model,
             contents: { parts: [imagePart, textPart] },
         });
+
+        const response: GenerateContentResponse = await withRetry(apiCall)();
 
         let newBase64Image: string | null = null;
         let text: string | null = null;
@@ -204,14 +220,17 @@ export const executePreset = async (
         return { newBase64Image: null, text: "Error: Image(s) or prompt is missing." };
     }
     try {
+        const client = getClient('image');
         const imageParts = inputs.map(input => base64ToGenerativePart(input.data, input.mimeType));
         const textPart = { text: prompt };
         const allParts = [...imageParts, textPart];
 
-        const response: GenerateContentResponse = await generateContentWrapped({
-            model: 'gemini-2.5-flash-image',
+        const apiCall = () => client.models.generateContent({
+            model: configs.image.model || defaults.image.model,
             contents: { parts: allParts },
         });
+
+        const response: GenerateContentResponse = await withRetry(apiCall)();
 
         let newBase64Image: string | null = null;
         let text: string | null = null;
@@ -241,32 +260,36 @@ export const generateVideo = async (
 ): Promise<string> => {
      if (!prompt) return "Error: Prompt is empty.";
     try {
+        const client = getClient('video');
         onProgress("Starting video generation...");
         let operation;
         
+        const videoModel = configs.video.model || defaults.video.model;
+
         if (base64Image && mimeType) {
-            operation = await generateVideosWrapped({
-              model: 'veo-3.1-fast-generate-preview',
+            operation = await withRetry(() => client.models.generateVideos({
+              model: videoModel,
               prompt,
               image: {
                 imageBytes: base64Image,
                 mimeType: mimeType,
               },
               config: { numberOfVideos: 1 }
-            });
+            }))();
         } else {
-             operation = await generateVideosWrapped({
-                model: 'veo-3.1-fast-generate-preview',
+             operation = await withRetry(() => client.models.generateVideos({
+                model: videoModel,
                 prompt,
                 config: { numberOfVideos: 1 }
-            });
+            }))();
         }
         
         onProgress("Video processing has started. This may take a few minutes...");
         while (!operation.done) {
             await new Promise(resolve => setTimeout(resolve, 10000));
             onProgress("Checking video status...");
-            operation = await getVideosOperationWrapped({ operation: operation });
+            // getVideosOperation must be called on the client.operations
+            operation = await withRetry(() => client.operations.getVideosOperation({ operation: operation }))();
         }
 
         onProgress("Video processing complete. Fetching video...");
@@ -276,7 +299,8 @@ export const generateVideo = async (
             throw new Error("Video URI not found in response.");
         }
 
-        const response = await fetch(`${downloadLink}&key=${currentApiKey}`);
+        const apiKey = configs.video.apiKey || process.env.API_KEY || "";
+        const response = await fetch(`${downloadLink}&key=${apiKey}`);
         const videoBlob = await response.blob();
         
         onProgress("Video fetched successfully.");

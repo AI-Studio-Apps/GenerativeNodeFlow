@@ -2,6 +2,19 @@
 import React, { useState, useEffect } from 'react';
 import type { Theme, Shortcuts } from '../types';
 
+interface ModelConfig {
+    apiKey: string;
+    model: string;
+    baseUrl: string;
+}
+
+interface AIConfig {
+    text: ModelConfig;
+    image: ModelConfig;
+    video: ModelConfig;
+    audio: ModelConfig;
+}
+
 interface SettingsPanelProps {
   theme: Theme;
   setTheme: (theme: Theme) => void;
@@ -10,9 +23,8 @@ interface SettingsPanelProps {
   onClose: () => void;
   zoom: number;
   onZoomChange: (zoom: number) => void;
-  // New props for AI Config
-  aiConfig: { apiKey: string; model: string; url: string; };
-  setAiConfig: (config: { apiKey: string; model: string; url: string; }) => void;
+  aiConfig: AIConfig;
+  setAiConfig: React.Dispatch<React.SetStateAction<AIConfig>>;
 }
 
 const ShortcutInput: React.FC<{ label: string; value: string; onChange: (value: string) => void; modifier: string; }> = ({ label, value, onChange, modifier }) => {
@@ -54,7 +66,7 @@ const TextInput: React.FC<{ label: string; value: string; onChange: (value: stri
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className="w-full px-3 py-2 text-white bg-neutral-900 border border-neutral-700 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 placeholder-white/20"
+            className="w-full px-3 py-2 text-white bg-neutral-900 border border-neutral-700 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 placeholder-white/20 transition-all"
         />
     </div>
 );
@@ -64,7 +76,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ theme, setTheme, shortcut
   const [localTheme, setLocalTheme] = useState(theme);
   const [localShortcuts, setLocalShortcuts] = useState(shortcuts);
   const [localZoom, setLocalZoom] = useState(zoom);
-  const [localAiConfig, setLocalAiConfig] = useState(aiConfig);
+  const [localAiConfig, setLocalAiConfig] = useState<AIConfig>(aiConfig);
+  const [activeModelTab, setActiveModelTab] = useState<'text' | 'image' | 'video' | 'audio'>('text');
 
   useEffect(() => {
     setLocalTheme(theme);
@@ -104,41 +117,87 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ theme, setTheme, shortcut
     e.target.value = ''; // Reset input
   };
 
+  const updateModelConfig = (type: 'text' | 'image' | 'video' | 'audio', field: keyof ModelConfig, value: string) => {
+      setLocalAiConfig(prev => ({
+          ...prev,
+          [type]: {
+              ...prev[type],
+              [field]: value
+          }
+      }));
+  };
+
+  const tabs: { id: 'text' | 'image' | 'video' | 'audio', label: string }[] = [
+      { id: 'text', label: 'Text' },
+      { id: 'image', label: 'Image' },
+      { id: 'video', label: 'Video' },
+      { id: 'audio', label: 'Audio' },
+  ];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-neutral-800 rounded-lg shadow-xl w-full max-w-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="p-6 border-b border-neutral-700">
             <h2 className="text-xl font-bold text-white">Settings</h2>
         </div>
-        <div className="p-6 overflow-y-auto" style={{ maxHeight: '70vh' }}>
+        <div className="p-6 overflow-y-auto custom-scrollbar" style={{ maxHeight: '70vh' }}>
             <div className="space-y-8">
                 
-                {/* AI Model Key Section - MUST be first */}
+                {/* AI Model Key Section */}
                 <div>
                     <h3 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
                         AI Model Configuration
                         <span className="text-xs font-normal text-gray-400 bg-neutral-700 px-2 py-0.5 rounded">Required for self-hosting</span>
                     </h3>
-                    <div className="space-y-4 p-4 bg-neutral-700/30 rounded-lg border border-neutral-600">
-                         <TextInput 
-                            label="API Key"
-                            value={localAiConfig.apiKey}
-                            onChange={(val) => setLocalAiConfig(c => ({ ...c, apiKey: val }))}
-                            placeholder="Starts with AIza..."
-                            type="password"
-                        />
-                        <TextInput 
-                            label="Text Model (Default)"
-                            value={localAiConfig.model}
-                            onChange={(val) => setLocalAiConfig(c => ({ ...c, model: val }))}
-                            placeholder="gemini-3-flash-preview"
-                        />
-                        <TextInput 
-                            label="Base URL (Optional)"
-                            value={localAiConfig.url}
-                            onChange={(val) => setLocalAiConfig(c => ({ ...c, url: val }))}
-                            placeholder="https://generativelanguage.googleapis.com"
-                        />
+                    
+                    <div className="bg-neutral-700/30 rounded-lg border border-neutral-600 overflow-hidden">
+                        {/* Tabs Header */}
+                        <div className="flex border-b border-neutral-600 bg-neutral-800/50">
+                            {tabs.map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveModelTab(tab.id)}
+                                    className={`flex-1 py-3 text-sm font-medium transition-colors relative ${
+                                        activeModelTab === tab.id 
+                                            ? 'text-white bg-neutral-700/50' 
+                                            : 'text-gray-400 hover:text-white hover:bg-neutral-700/30'
+                                    }`}
+                                >
+                                    {tab.label}
+                                    {activeModelTab === tab.id && (
+                                        <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ backgroundColor: localTheme.buttonColor }}></div>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="p-4 space-y-4">
+                            <TextInput 
+                                label="API Key"
+                                value={localAiConfig[activeModelTab].apiKey}
+                                onChange={(val) => updateModelConfig(activeModelTab, 'apiKey', val)}
+                                placeholder="Starts with AIza..."
+                                type="password"
+                            />
+                            <TextInput 
+                                label="Model Name"
+                                value={localAiConfig[activeModelTab].model}
+                                onChange={(val) => updateModelConfig(activeModelTab, 'model', val)}
+                                placeholder={`e.g. ${
+                                    activeModelTab === 'text' ? 'gemini-3-flash-preview' :
+                                    activeModelTab === 'image' ? 'gemini-2.5-flash-image' :
+                                    activeModelTab === 'video' ? 'veo-3.1-fast-generate-preview' :
+                                    'gemini-2.5-flash-native-audio-preview-12-2025'
+                                }`}
+                            />
+                            <TextInput 
+                                label="Base URL (Optional)"
+                                value={localAiConfig[activeModelTab].baseUrl}
+                                onChange={(val) => updateModelConfig(activeModelTab, 'baseUrl', val)}
+                                placeholder="https://generativelanguage.googleapis.com"
+                            />
+                        </div>
                     </div>
                 </div>
 

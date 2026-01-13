@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { Node, Edge, Point, HistoryItem, NodeInput, NodeOutput, Group, Theme, Shortcuts } from './types';
 import { NodeType, NodeStatus } from './types';
@@ -132,12 +131,35 @@ const App: React.FC = () => {
   const [notification, setNotification] = useState<{ message: string; type: 'error' | 'success' | 'info' | 'critical' } | null>(null);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
-  // AI Configuration State
+  // AI Configuration State - Structed by Modality
   const [aiConfig, setAiConfig] = useState(() => {
+    // Helper to get from local storage or fallback to legacy/env
+    const get = (key: string, defaultVal: string) => localStorage.getItem(key) || defaultVal;
+    // Fallback for API keys: if generic one exists in env, use it as default for all
+    const defaultKey = process.env.API_KEY || ''; 
+    const legacyKey = localStorage.getItem('gemini_api_key') || defaultKey;
+
     return {
-        apiKey: localStorage.getItem('gemini_api_key') || process.env.API_KEY || '',
-        model: localStorage.getItem('gemini_model') || 'gemini-3-flash-preview',
-        url: localStorage.getItem('gemini_url') || ''
+        text: {
+            apiKey: get('gemini_text_api_key', legacyKey),
+            model: get('gemini_text_model', 'gemini-3-flash-preview'),
+            baseUrl: get('gemini_text_url', '')
+        },
+        image: {
+            apiKey: get('gemini_image_api_key', legacyKey),
+            model: get('gemini_image_model', 'gemini-2.5-flash-image'),
+            baseUrl: get('gemini_image_url', '')
+        },
+        video: {
+            apiKey: get('gemini_video_api_key', legacyKey),
+            model: get('gemini_video_model', 'veo-3.1-fast-generate-preview'),
+            baseUrl: get('gemini_video_url', '')
+        },
+        audio: {
+            apiKey: get('gemini_audio_api_key', legacyKey),
+            model: get('gemini_audio_model', 'gemini-2.5-flash-native-audio-preview-12-2025'),
+            baseUrl: get('gemini_audio_url', '')
+        }
     };
   });
   
@@ -154,17 +176,31 @@ const App: React.FC = () => {
 
   // Update Service and Storage when AI Config changes
   useEffect(() => {
-    geminiService.updateConfig(aiConfig.apiKey, aiConfig.model, aiConfig.url);
-    localStorage.setItem('gemini_api_key', aiConfig.apiKey);
-    localStorage.setItem('gemini_model', aiConfig.model);
-    localStorage.setItem('gemini_url', aiConfig.url);
+    geminiService.updateConfig(aiConfig);
+    
+    localStorage.setItem('gemini_text_api_key', aiConfig.text.apiKey);
+    localStorage.setItem('gemini_text_model', aiConfig.text.model);
+    localStorage.setItem('gemini_text_url', aiConfig.text.baseUrl);
+
+    localStorage.setItem('gemini_image_api_key', aiConfig.image.apiKey);
+    localStorage.setItem('gemini_image_model', aiConfig.image.model);
+    localStorage.setItem('gemini_image_url', aiConfig.image.baseUrl);
+
+    localStorage.setItem('gemini_video_api_key', aiConfig.video.apiKey);
+    localStorage.setItem('gemini_video_model', aiConfig.video.model);
+    localStorage.setItem('gemini_video_url', aiConfig.video.baseUrl);
+
+    localStorage.setItem('gemini_audio_api_key', aiConfig.audio.apiKey);
+    localStorage.setItem('gemini_audio_model', aiConfig.audio.model);
+    localStorage.setItem('gemini_audio_url', aiConfig.audio.baseUrl);
+
   }, [aiConfig]);
 
-  // Initial check for API Key
+  // Initial check for API Key (Check at least Text or Image key is present)
   useEffect(() => {
-    if (!aiConfig.apiKey) {
+    if (!aiConfig.text.apiKey && !aiConfig.image.apiKey) {
          setNotification({
-             message: "Missing API Key! Please configure the AI Model settings in the Settings panel.",
+             message: "Missing API Keys! Please configure the AI Model settings in the Settings panel.",
              type: 'critical'
          });
          setIsSettingsPanelOpen(true);
@@ -1186,7 +1222,7 @@ const App: React.FC = () => {
                 className="px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors"
                 style={{ backgroundColor: theme.buttonColor }}
               >
-                Save Changes
+                Save
               </button>
             </div>
           </div>
