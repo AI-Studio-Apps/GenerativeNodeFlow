@@ -26,20 +26,22 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: '8'
-
-      - name: Ensure pnpm is available (Corepack / fallback)
+      - name: Ensure pnpm is available (Corepack preferred)
         run: |
-          if ! command -v pnpm >/dev/null; then
-            echo 'pnpm not found — enabling Corepack and preparing pnpm'
+          set -eux
+          # Prefer Corepack (available on modern Node versions)
+          if command -v corepack >/dev/null; then
+            echo 'Enabling Corepack and preparing pnpm@8'
             corepack enable || true
-            corepack prepare pnpm@latest --activate || npm install -g pnpm
-          else
-            echo 'pnpm already available'
+            corepack prepare pnpm@8 --activate || true
           fi
+          # If pnpm still not available, install globally as a fallback
+          if ! command -v pnpm >/dev/null; then
+            echo 'pnpm still not found — installing globally via npm'
+            npm install -g pnpm@8
+          fi
+          echo 'pnpm version:'
+          pnpm --version
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
