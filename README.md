@@ -34,10 +34,11 @@ This app allows you to configure different Gemini models for specific tasks (Tex
 - **Dynamic Execution:** The application dynamically selects the correct credentials and model version based on the active node type (Text Generator, Image Editor, or Video Generator).
 
 
+> [!TIP]
+> Open the app settings to specify the API Key, Model, and URL (local or cloud)   
+> These settings are saved to your localstorage.
 
-Open the app settings to specify the API Key, Model, and URL (local or cloud)   
-These settings are saved to your localstorage.
-
+- Model for text.
 - Model for generating and editing images.
 - Model for generating videos.
 
@@ -46,18 +47,19 @@ These settings are saved to your localstorage.
 
 You only need one single API key (your Google GenAI / Gemini API key).
 
-Unified Access: Both the Gemini and Veo models are accessed through the same Google GenAI SDK (@google/genai).
+**Unified Access**: Both the Gemini and Veo models are accessed through the same Google GenAI SDK (@google/genai).
 
 One Key: The specific API Key you provide in your .env file (GEMINI_API_KEY) authenticates your project with Google's services, granting you access to all available models (Gemini, Veo, Imagen, etc.) that your account is authorized to use.
 
-Note on Billing: While you use the same key, Veo (Video generation) is a premium feature. To use Veo models, the Google Cloud Project associated with your API key must usually have billing enabled (meaning it requires a paid tier), whereas some Gemini models have a free tier
+> [!CAUTION]
+> Note on Billing: While you use the same key, Veo (Video generation) is a premium feature. To use Veo models, the Google Cloud Project associated with your API key must usually have billing enabled (meaning it requires a paid tier), whereas some Gemini models have a free tier
 
 
 ## Test local build of `metadata.json`
 
 This project builds in CI using `npm`. If you prefer `pnpm` for local development you may still use it, but CI runs `npm` for consistency across runners. You can enable `pnpm` locally using Corepack (optional) or install it globally.
 
-Quick commands (Windows / macOS / Linux)
+### Quick commands (Windows / macOS / Linux)
 
 Use `npm` locally to match CI. The following commands install dependencies, build the site, and generate `dist/metadata.json`.
 
@@ -85,6 +87,5 @@ node scripts/generate-metadata.cjs
 cat dist/metadata.json
 ```
 
-Notes:
-- CI uses `npm` for installs and builds. For deterministic CI installs, add and commit `package-lock.json` so the workflow can use `npm ci`.
-corepack enable
+> [!NOTE]
+> CI uses `npm` for installs and builds. For deterministic CI installs, add and commit `package-lock.json` so the workflow can use `npm ci`.
