@@ -44,7 +44,7 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
           HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit && github.event.head_commit.timestamp || '' }}
         run: |
-          node scripts/generate-metadata.js
+          node scripts/generate-metadata.cjs
 
       - name: Configure Pages (deploy only on push to main)
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}

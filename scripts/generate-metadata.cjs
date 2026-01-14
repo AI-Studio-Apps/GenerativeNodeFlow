@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-
 const { execSync } = require('child_process');
 
 const repoName = process.env.REPO_NAME || (process.env.GITHUB_REPOSITORY || '').split('/').pop() || 'unknown';

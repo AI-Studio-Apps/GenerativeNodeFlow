@@ -59,46 +59,32 @@ This project builds in CI using `npm`. If you prefer `pnpm` for local developmen
 
 Quick commands (Windows / macOS / Linux)
 
-CI builds use `npm` (see workflow). Below are commands you can run locally. Use `npm` for parity with CI, or `pnpm` locally if you prefer.
+Use `npm` locally to match CI. The following commands install dependencies, build the site, and generate `dist/metadata.json`.
 
 PowerShell (Windows):
 
 ```powershell
-# Install dependencies and build (npm - recommended for CI parity)
+# Install dependencies and build
 npm install
 npm run build
 
-# Optional: if you prefer pnpm locally (install via Corepack)
-corepack enable
-corepack prepare pnpm@latest --activate
-pnpm install
-pnpm build
-
 # Generate metadata.json into dist and view it
-node scripts/generate-metadata.js
+node scripts/generate-metadata.cjs
 Get-Content .\dist\metadata.json -Raw
 ```
 
 Bash (macOS / Linux):
 
 ```bash
-# Install dependencies and build (npm - recommended for CI parity)
+# Install dependencies and build
 npm install
 npm run build
 
-# Optional: if you prefer pnpm locally (install via Corepack)
-corepack enable
-corepack prepare pnpm@latest --activate
-pnpm install
-pnpm build
-
 # Generate metadata.json into dist and view it
-node scripts/generate-metadata.js
+node scripts/generate-metadata.cjs
 cat dist/metadata.json
 ```
 
-> [!NOTE]
-> CI uses NPM 
-
-- CI uses `npm` for installs and builds. For deterministic CI installs, add and commit `package-lock.json` so the workflow will use `npm ci`.
-- `pnpm` remains an optional local alternative for contributors; it's not required by CI.
+Notes:
+- CI uses `npm` for installs and builds. For deterministic CI installs, add and commit `package-lock.json` so the workflow can use `npm ci`.
+corepack enable
