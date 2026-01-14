@@ -53,11 +53,56 @@ One Key: The specific API Key you provide in your .env file (GEMINI_API_KEY) aut
 Note on Billing: While you use the same key, Veo (Video generation) is a premium feature. To use Veo models, the Google Cloud Project associated with your API key must usually have billing enabled (meaning it requires a paid tier), whereas some Gemini models have a free tier
 
 
-## Test Local buld of metadata.json 
+## Test local build of `metadata.json`
 
-```js
+This project uses `pnpm` for reproducible installs (the repo includes `pnpm-lock.yaml`). The CI workflow also uses `pnpm` so we recommend running the same locally. You can enable `pnpm` using Corepack (preferred) or install it globally.
+
+Quick commands (Windows / macOS / Linux)
+
+Use Corepack (preferred) to enable `pnpm` or install `pnpm` globally. Pick the commands for your shell.
+
+PowerShell (Windows):
+
+```powershell
+# Enable pnpm via Corepack (recommended)
+corepack enable
+corepack prepare pnpm@latest --activate
+
+# Or install pnpm globally if you prefer
+npm install -g pnpm
+
+# Install dependencies and build
 pnpm install
 pnpm build
+
+# Generate metadata.json into dist and view it
 node scripts/generate-metadata.js
-cat dist\\metadata.json
+Get-Content .\dist\metadata.json -Raw
 ```
+
+Bash (macOS / Linux):
+
+```bash
+# Enable pnpm via Corepack (recommended)
+corepack enable
+corepack prepare pnpm@latest --activate
+
+# Or install pnpm globally if you prefer
+npm install -g pnpm
+
+# Install dependencies and build
+pnpm install
+pnpm build
+
+# Generate metadata.json into dist and view it
+node scripts/generate-metadata.js
+cat dist/metadata.json
+```
+
+> [!NOTE] 
+> CI using pnpm
+
+- `pnpm-lock.yaml` should be committed — CI uses `pnpm install --frozen-lockfile` to ensure reproducible installs.
+- If a contributor uses `npm`, their install may produce a different dependency tree; encourage using `pnpm` (Corepack makes this painless).
+- Corepack is available in newer Node.js releases; if unavailable, install `pnpm` globally as shown above.
+- The workflow includes a fallback to enable Corepack or install `pnpm` on the runner if needed.

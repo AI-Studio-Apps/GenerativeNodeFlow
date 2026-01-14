@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js and pnpm cache
         uses: actions/setup-node@v4
@@ -28,6 +30,16 @@ jobs:
         uses: pnpm/action-setup@v2
         with:
           version: '8'
+
+      - name: Ensure pnpm is available (Corepack / fallback)
+        run: |
+          if ! command -v pnpm >/dev/null; then
+            echo 'pnpm not found — enabling Corepack and preparing pnpm'
+            corepack enable || true
+            corepack prepare pnpm@latest --activate || npm install -g pnpm
+          else
+            echo 'pnpm already available'
+          fi
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
