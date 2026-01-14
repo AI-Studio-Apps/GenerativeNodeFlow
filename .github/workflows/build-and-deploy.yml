@@ -20,34 +20,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js and pnpm cache
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
+          cache: 'npm'
 
-      - name: Ensure pnpm is available (Corepack preferred)
+      - name: Install dependencies (npm)
         run: |
           set -eux
-          # Prefer Corepack (available on modern Node versions)
-          if command -v corepack >/dev/null; then
-            echo 'Enabling Corepack and preparing pnpm@8'
-            corepack enable || true
-            corepack prepare pnpm@8 --activate || true
-          fi
-          # If pnpm still not available, install globally as a fallback
-          if ! command -v pnpm >/dev/null; then
-            echo 'pnpm still not found — installing globally via npm'
-            npm install -g pnpm@8
-          fi
-          echo 'pnpm version:'
-          pnpm --version
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          # Let npm generate or update package-lock.json from package.json
+          npm install
 
       - name: Build site
-        run: pnpm build
+        run: npm run build
 
       - name: Generate metadata.json in dist (via script)
         env:

@@ -55,23 +55,22 @@ Note on Billing: While you use the same key, Veo (Video generation) is a premium
 
 ## Test local build of `metadata.json`
 
-This project uses `pnpm` for reproducible installs (the repo includes `pnpm-lock.yaml`). The CI workflow also uses `pnpm` so we recommend running the same locally. You can enable `pnpm` using Corepack (preferred) or install it globally.
+This project builds in CI using `npm`. If you prefer `pnpm` for local development you may still use it, but CI runs `npm` for consistency across runners. You can enable `pnpm` locally using Corepack (optional) or install it globally.
 
 Quick commands (Windows / macOS / Linux)
 
-Use Corepack (preferred) to enable `pnpm` or install `pnpm` globally. Pick the commands for your shell.
+CI builds use `npm` (see workflow). Below are commands you can run locally. Use `npm` for parity with CI, or `pnpm` locally if you prefer.
 
 PowerShell (Windows):
 
 ```powershell
-# Enable pnpm via Corepack (recommended)
+# Install dependencies and build (npm - recommended for CI parity)
+npm install
+npm run build
+
+# Optional: if you prefer pnpm locally (install via Corepack)
 corepack enable
 corepack prepare pnpm@latest --activate
-
-# Or install pnpm globally if you prefer
-npm install -g pnpm
-
-# Install dependencies and build
 pnpm install
 pnpm build
 
@@ -83,14 +82,13 @@ Get-Content .\dist\metadata.json -Raw
 Bash (macOS / Linux):
 
 ```bash
-# Enable pnpm via Corepack (recommended)
+# Install dependencies and build (npm - recommended for CI parity)
+npm install
+npm run build
+
+# Optional: if you prefer pnpm locally (install via Corepack)
 corepack enable
 corepack prepare pnpm@latest --activate
-
-# Or install pnpm globally if you prefer
-npm install -g pnpm
-
-# Install dependencies and build
 pnpm install
 pnpm build
 
@@ -99,10 +97,8 @@ node scripts/generate-metadata.js
 cat dist/metadata.json
 ```
 
-> [!NOTE] 
-> CI using pnpm
+> [!NOTE]
+> CI uses NPM 
 
-- `pnpm-lock.yaml` should be committed — CI uses `pnpm install --frozen-lockfile` to ensure reproducible installs.
-- If a contributor uses `npm`, their install may produce a different dependency tree; encourage using `pnpm` (Corepack makes this painless).
-- Corepack is available in newer Node.js releases; if unavailable, install `pnpm` globally as shown above.
-- The workflow includes a fallback to enable Corepack or install `pnpm` on the runner if needed.
+- CI uses `npm` for installs and builds. For deterministic CI installs, add and commit `package-lock.json` so the workflow will use `npm ci`.
+- `pnpm` remains an optional local alternative for contributors; it's not required by CI.
