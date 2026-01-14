@@ -52,3 +52,12 @@ One Key: The specific API Key you provide in your .env file (GEMINI_API_KEY) aut
 
 Note on Billing: While you use the same key, Veo (Video generation) is a premium feature. To use Veo models, the Google Cloud Project associated with your API key must usually have billing enabled (meaning it requires a paid tier), whereas some Gemini models have a free tier
 
+
+## Test Local buld of metadata.json 
+
+```js
+pnpm install
+pnpm build
+node scripts/generate-metadata.js
+cat dist\\metadata.json
+```
