@@ -11,7 +11,9 @@ This will automatically set AI Models:
 
 This contains everything you need to run your app locally.
 
-View the app in AI Studio: https://ai.studio/apps/drive/1Q7ZKXRgkgGC3bEYbt40odU-2zfH5ZjyS
+View the app in Github Pages (requires Gemini API Key) : https://ai-studio-apps.github.io/GenerativeNodeFlow/
+
+View the app in AI Studio: https://aistudio.google.com/apps/drive/1qLISjOuHyN53q77FUVNPLmrLlZ8auOHr
 
 ## Run Locally
 
